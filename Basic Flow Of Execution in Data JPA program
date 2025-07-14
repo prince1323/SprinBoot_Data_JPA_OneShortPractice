@@ -1,0 +1,135 @@
+
+SPRING DATA JPA EXECUTION FLOW - STEP BY STEP PROCEDURE
+================================================================================
+This explains exactly what happens, in what order, in a typical
+  Spring Boot + Spring Data JPA application.
+
+
+1) Application Startup
+-------------------------
+- The app starts by running the main method in class annotated with @SpringBootApplication
+
+- Inside main:
+    SpringApplication.run(BootDataAppPtlCrudRepositoryApplication.class, args);
+
+- This kicks off the entire Spring Boot framework.
+
+
+2) Creating the Spring IOC Container
+--------------------------------------
+- SpringApplication.run(...) does:
+    - Creates the Spring IOC container (ApplicationContext).
+    - Scans packages for:
+        @Component, @Service, @Repository, @Controller
+    - Finds @SpringBootApplication, which is a shortcut for:
+        @ComponentScan + @EnableAutoConfiguration + @Configuration.
+
+- This automatically registers your beans and configures defaults.
+
+
+3) Reading Configuration Properties
+--------------------------------------
+- Reads application.properties (or application.yml) for:
+    spring.datasource.url
+    spring.datasource.username
+    spring.datasource.password
+    spring.jpa.hibernate.ddl-auto
+    spring.jpa.show-sql
+
+- Based on these:
+    - Sets up DataSource (by default HikariCP).
+    - Configures EntityManagerFactory (JPA interface).
+    - Configures Hibernate SessionFactory.
+
+
+4) Bean Creation & Registration
+--------------------------------
+- Spring IOC container creates beans (singletons) for:
+    - DoctorServiceImpl → doctorService bean
+    - DoctorRepository → Spring Data JPA proxy
+    - DataSource, EntityManagerFactory, TransactionManager
+
+- These are all stored in the IOC container cache, and injected wherever needed.
+
+
+5) Running Client Logic (like CommandLineRunner)
+-------------------------------------------------
+- In your runner or main, you retrieve a bean:
+    DoctorService service = ctx.getBean(DoctorService.class);
+
+- Then call a method:
+    service.registerDoctor(new Doctor(...));
+
+
+6) Inside the Service Layer
+-----------------------------
+- DoctorServiceImpl receives the call.
+- Calls repository method, for example:
+    doctorRepository.save(doctor);
+
+
+7) Spring Data JPA Repository Proxy
+------------------------------------
+- doctorRepository is a proxy object created by Spring Data JPA.
+- When you call save:
+    - Obtains an EntityManager.
+    - Starts or joins a transaction.
+    - Delegates to Hibernate Session.
+    - Generates an INSERT or UPDATE SQL.
+    - Executes it using JDBC.
+
+
+8) Hibernate & SQL Execution
+------------------------------
+- Hibernate translates entity operations into SQL.
+- Executes the SQL on your database via JDBC.
+- Retrieves results back to Hibernate, then JPA, then your service.
+
+
+9) Transaction Commit & Cleanup
+--------------------------------
+- If successful, transaction manager commits the transaction.
+- If an error occurs, it rolls back.
+
+
+10) End of Application Execution
+---------------------------------
+- After work is done or app shuts down, Spring closes the context,
+  releasing connections & cleaning up.
+
+
+QUICK CORE CONCEPTS
+=================================================================================
+- @SpringBootApplication = @ComponentScan + @EnableAutoConfiguration + @Configuration
+- application.properties gives DB config (url, user, pass, dialect, ddl-auto)
+- IOC container manages singletons for services, repositories, datasource.
+- Repository interface extends JpaRepository or CrudRepository.
+  Spring auto-creates a in memory proxy class that uses EntityManager.
+- JPA (EntityManager) is a spec. Hibernate (Session) implements it.
+- JDBC does the actual communication to your DB.
+
+
+HIGH-LEVEL PIPELINE
+=================================================================================
+main()
+  ⬇
+SpringApplication.run()
+  ⬇
+Creates IOC Container, reads properties, registers beans
+  ⬇
+Creates DataSource, EntityManagerFactory, SessionFactory
+  ⬇
+Runner or main retrieves service bean & calls business logic
+  ⬇
+Service calls Repository Proxy
+  ⬇
+Repository → EntityManager → Hibernate → JDBC → Database
+  ⬇
+Transaction commits, context closes on shutdown
+
+
+STUDY TIPS
+=================================================================================
+- Think in layers: Controller → Service → Repository → JPA Proxy → EntityManager → Hibernate → JDBC → DB
+- Turn on spring.jpa.show-sql=true to see exact generated SQL.
+
