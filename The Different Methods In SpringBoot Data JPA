@@ -1,0 +1,125 @@
+SPRING DATA JPA REPOSITORIES
+==================================
+
+1️⃣ CrudRepository Methods
+---------------------------
+- save(entity)
+    -> INSERT INTO or UPDATE student_entity SET ... WHERE id = ?
+
+- saveAll(entities)
+    -> Batch INSERT/UPDATE on student_entity
+
+- findById(id)
+    -> SELECT * FROM student_entity WHERE id = ?
+
+- existsById(id)
+    -> SELECT COUNT(*) > 0 FROM student_entity WHERE id = ?
+
+- findAll()
+    -> SELECT * FROM student_entity
+
+- findAllById(ids)
+    -> SELECT * FROM student_entity WHERE id IN (?,?,...)
+
+- count()
+    -> SELECT COUNT(*) FROM student_entity
+
+- deleteById(id)
+    -> DELETE FROM student_entity WHERE id = ?
+
+- delete(entity)
+    -> DELETE FROM student_entity WHERE id = ?
+
+- deleteAllById(ids)
+    -> DELETE FROM student_entity WHERE id IN (?,?,...)
+
+- deleteAll(entities)
+    -> DELETE FROM student_entity WHERE id IN (?,?,...)
+
+- deleteAll()
+    -> DELETE FROM student_entity
+
+
+
+2️⃣ JpaRepository Additional Methods
+------------------------------------
+- findAll(Sort sort)
+    -> SELECT * FROM student_entity ORDER BY column ASC|DESC
+
+- findAll(Pageable pageable)
+    -> SELECT * FROM student_entity LIMIT ? OFFSET ?
+
+- saveAndFlush(entity)
+    -> Immediate INSERT/UPDATE with flush to DB
+
+- deleteAllInBatch()
+    -> DELETE FROM student_entity (as a single batch call)
+
+- getById(id) or getReferenceById(id)
+    -> SELECT * FROM student_entity WHERE id = ? (lazy reference proxy)
+
+
+
+3️⃣ Finder Methods Examples & Their SQL
+---------------------------------------
+Spring Data JPA auto-generates these based on method names.
+
+- findByName(String name)
+    -> SELECT * FROM student_entity WHERE name = ?
+
+- findByStdClass(String stdClass)
+    -> SELECT * FROM student_entity WHERE std_class = ?
+
+- findByNameAndStdClass(String name, String stdClass)
+    -> SELECT * FROM student_entity WHERE name = ? AND std_class = ?
+
+- findByNameLike(String pattern)
+    -> SELECT * FROM student_entity WHERE name LIKE ?
+
+- findByIdGreaterThan(Long id)
+    -> SELECT * FROM student_entity WHERE id > ?
+
+- countByStdClass(String stdClass)
+    -> SELECT COUNT(*) FROM student_entity WHERE std_class = ?
+
+- existsByName(String name)
+    -> SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END 
+       FROM student_entity WHERE name = ?
+
+
+
+4️⃣ @Query Examples (JPQL & Native SQL)
+---------------------------------------
+For advanced queries.
+
+- JPQL Example (uses entity field names)
+    @Query("SELECT s FROM StudentEntity s WHERE s.name = ?1")
+    -> SELECT * FROM student_entity WHERE name = ?
+
+- Native SQL Example
+    @Query(value = "SELECT * FROM Practice_Table_Student_JPA WHERE std_class = ?1", nativeQuery = true)
+    -> SELECT * FROM Practice_Table_Student_JPA WHERE std_class = ?
+
+- Update Example
+    @Modifying
+    @Query("UPDATE StudentEntity s SET s.name = ?2 WHERE s.id = ?1")
+    -> UPDATE student_entity SET name = ? WHERE id = ?
+
+
+
+5️⃣ Why use @Modifying and @Transactional together?
+---------------------------------------------------
+- `@Modifying` tells Spring Data JPA that this is not a SELECT, but an UPDATE or DELETE.
+- Without it, Spring would try to execute the @Query as a SELECT, causing errors.
+
+- `@Transactional` ensures the DB operation is run in a transaction,
+  so changes are committed. Otherwise the update or delete might not persist.
+
+✅ Typical usage on repository:
+    @Modifying
+    @Transactional
+    @Query("UPDATE StudentEntity s SET s.name = ?2 WHERE s.id = ?1")
+    void updateStudentName(Long id, String newName);
+
+- Best practice: keep @Transactional at the service layer, 
+  and use @Modifying on the repository method.
